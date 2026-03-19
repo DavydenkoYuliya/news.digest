@@ -17,7 +17,7 @@ import { useUser } from './hooks/useUser';
 function App() {
   const [activeTab, setActiveTab] = useState('news');
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { news, loading, loadFromFile } = useExcelData();
+  const { news, loading } = useExcelData();
   const { bookmarkList, isBookmarked, toggle } = useBookmarks();
   const { filters, filtered, options, setFilter, toggleMulti, reset } = useFilters(news);
   const { name, initials, showModal, setShowModal, saveName } = useUser();
