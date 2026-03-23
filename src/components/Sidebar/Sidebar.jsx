@@ -14,6 +14,11 @@ export function Sidebar({ filters, options, setFilter, toggleMulti, reset, total
           Фільтри
         </div>
 
+        <div className="filter-meta">
+          <span className="found-count">Знайдено: {totalCount} новин</span>
+          <button className="reset-btn" onClick={reset}>Скинути фільтри</button>
+        </div>
+
         <input
           className="search-box"
           placeholder="Пошук за ключовими словами..."
@@ -65,8 +70,6 @@ export function Sidebar({ filters, options, setFilter, toggleMulti, reset, total
           onToggle={v => toggleMulti('commodities', v)}
         />
 
-        <div className="found-count">Знайдено: {totalCount} новин</div>
-        <button className="reset-btn" onClick={reset}>Скинути всі фільтри</button>
       </div>
   );
 
