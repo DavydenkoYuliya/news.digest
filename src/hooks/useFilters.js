@@ -19,6 +19,60 @@ const DEFAULT_FILTERS = {
   sort: 'score',
 };
 
+// Apply all filters except those listed in `skip`
+function applyFilters(news, filters, skip = []) {
+  let result = news;
+  const q = filters.search.toLowerCase().trim();
+
+  if (q) {
+    result = result.filter(n =>
+      n.title.toLowerCase().includes(q) ||
+      n.summary.toLowerCase().includes(q) ||
+      n.source.toLowerCase().includes(q) ||
+      n.country.toLowerCase().includes(q) ||
+      n.domain.toLowerCase().includes(q) ||
+      n.category.toLowerCase().includes(q) ||
+      n.commodity.toLowerCase().includes(q)
+    );
+  }
+
+  if (filters.minScore > 1) {
+    result = result.filter(n => n.score >= filters.minScore);
+  }
+
+  if (!skip.includes('domains') && filters.domains.length > 0) {
+    result = result.filter(n => filters.domains.includes(n.domain));
+  }
+  if (!skip.includes('categories') && filters.categories.length > 0) {
+    result = result.filter(n => filters.categories.some(c => n.category.includes(c)));
+  }
+  if (!skip.includes('countries') && filters.countries.length > 0) {
+    result = result.filter(n => {
+      const parts = n.country.split(',').map(s => s.trim());
+      return filters.countries.some(c => parts.includes(c));
+    });
+  }
+  if (!skip.includes('commodities') && filters.commodities.length > 0) {
+    result = result.filter(n => {
+      const parts = n.commodity.split(',').map(s => s.trim());
+      return filters.commodities.some(c => parts.includes(c));
+    });
+  }
+
+  return result;
+}
+
+function countField(rows, key) {
+  const map = {};
+  rows.forEach(n => {
+    const val = n[key];
+    if (!val) return;
+    const parts = String(val).split(',').map(s => s.trim()).filter(Boolean);
+    parts.forEach(p => { map[p] = (map[p] || 0) + 1; });
+  });
+  return Object.entries(map).sort((a, b) => b[1] - a[1]);
+}
+
 export function useFilters(news) {
   const saved = loadFilters();
   const [filters, setFilters] = useState({ ...DEFAULT_FILTERS, ...saved });
@@ -27,67 +81,17 @@ export function useFilters(news) {
     try { localStorage.setItem(LS_KEY, JSON.stringify(filters)); } catch {}
   }, [filters]);
 
-  // Build unique option lists from data
-  const options = useMemo(() => {
-    const count = (key) => {
-      const map = {};
-      news.forEach(n => {
-        const val = n[key];
-        if (!val) return;
-        // Multi-value fields (country, commodity) split by comma
-        const parts = String(val).split(',').map(s => s.trim()).filter(Boolean);
-        parts.forEach(p => { map[p] = (map[p] || 0) + 1; });
-      });
-      return Object.entries(map).sort((a, b) => b[1] - a[1]);
-    };
-    return {
-      domains: count('domain'),
-      categories: count('category'),
-      countries: count('country'),
-      commodities: count('commodity'),
-    };
-  }, [news]);
+  // Cross-filtered options: each filter's options are based on all OTHER active filters
+  const options = useMemo(() => ({
+    domains:     countField(applyFilters(news, filters, ['domains']),     'domain'),
+    categories:  countField(applyFilters(news, filters, ['categories']),  'category'),
+    countries:   countField(applyFilters(news, filters, ['countries']),   'country'),
+    commodities: countField(applyFilters(news, filters, ['commodities']), 'commodity'),
+  }), [news, filters]);
 
   const filtered = useMemo(() => {
-    let result = news;
-    const q = filters.search.toLowerCase().trim();
+    let result = applyFilters(news, filters);
 
-    if (q) {
-      result = result.filter(n =>
-        n.title.toLowerCase().includes(q) ||
-        n.summary.toLowerCase().includes(q) ||
-        n.source.toLowerCase().includes(q) ||
-        n.country.toLowerCase().includes(q) ||
-        n.domain.toLowerCase().includes(q) ||
-        n.category.toLowerCase().includes(q) ||
-        n.commodity.toLowerCase().includes(q)
-      );
-    }
-
-    if (filters.minScore > 1) {
-      result = result.filter(n => n.score >= filters.minScore);
-    }
-
-    if (filters.domains.length > 0) {
-      result = result.filter(n => filters.domains.includes(n.domain));
-    }
-    if (filters.categories.length > 0) {
-      result = result.filter(n => filters.categories.some(c => n.category.includes(c)));
-    }
-    if (filters.countries.length > 0) {
-      result = result.filter(n => {
-        const parts = n.country.split(',').map(s => s.trim());
-        return filters.countries.some(c => parts.includes(c));
-      });
-    }
-    if (filters.commodities.length > 0) {
-      result = result.filter(n => {
-        const parts = n.commodity.split(',').map(s => s.trim());
-        return filters.commodities.some(c => parts.includes(c));
-      });
-    }
-
-    // Sort
     if (filters.sort === 'score') {
       result = [...result].sort((a, b) => b.score - a.score);
     } else if (filters.sort === 'date_new') {
@@ -110,9 +114,7 @@ export function useFilters(news) {
   }, [news, filters]);
 
   const reset = () => setFilters(DEFAULT_FILTERS);
-
   const setFilter = (key, value) => setFilters(f => ({ ...f, [key]: value }));
-
   const toggleMulti = (key, value) => {
     setFilters(f => {
       const arr = f[key];
