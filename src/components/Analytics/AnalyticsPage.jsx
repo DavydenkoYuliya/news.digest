@@ -1,18 +1,40 @@
 import { useState, useMemo } from 'react';
 import { useAnalyticsGeneration } from '../../hooks/useAnalyticsGeneration';
 
-function getUnique(news, field) {
-  const vals = new Set();
-  news.forEach(n => {
-    const v = n[field];
-    if (v) {
-      v.split(',').forEach(part => {
-        const t = part.trim();
-        if (t && t.toLowerCase() !== 'n/a' && t !== '-') vals.add(t);
-      });
-    }
+function applyFilters(news, filters, skip = []) {
+  let result = news;
+
+  if (!skip.includes('domains') && filters.domains.length > 0) {
+    result = result.filter(n => filters.domains.includes(n.domain));
+  }
+  if (!skip.includes('categories') && filters.categories.length > 0) {
+    result = result.filter(n => filters.categories.some(c => n.category.includes(c)));
+  }
+  if (!skip.includes('countries') && filters.countries.length > 0) {
+    result = result.filter(n => {
+      const parts = n.country.split(',').map(s => s.trim());
+      return filters.countries.some(c => parts.includes(c));
+    });
+  }
+  if (!skip.includes('commodities') && filters.commodities.length > 0) {
+    result = result.filter(n => {
+      const parts = n.commodity.split(',').map(s => s.trim());
+      return filters.commodities.some(c => parts.includes(c));
+    });
+  }
+
+  return result;
+}
+
+function countField(rows, key) {
+  const map = {};
+  rows.forEach(n => {
+    const val = n[key];
+    if (!val) return;
+    const parts = String(val).split(',').map(s => s.trim()).filter(Boolean);
+    parts.forEach(p => { map[p] = (map[p] || 0) + 1; });
   });
-  return [...vals].sort();
+  return Object.entries(map).sort((a, b) => b[1] - a[1]);
 }
 
 function AnalyticsResult({ text }) {
@@ -49,28 +71,19 @@ export function AnalyticsPage({ news }) {
   const [country, setCountry] = useState('');
   const { generate, result, loading, error, clear } = useAnalyticsGeneration();
 
-  const options = useMemo(() => ({
-    domains:     getUnique(news, 'domain'),
-    categories:  getUnique(news, 'category'),
-    commodities: getUnique(news, 'commodity'),
-    countries:   getUnique(news, 'country'),
-  }), [news]);
+  const filters = { domains: domain ? [domain] : [], categories: category ? [category] : [], commodities: commodity ? [commodity] : [], countries: country ? [country] : [] };
+
+  const options = useMemo(() => {
+    const domainList = countField(applyFilters(news, filters, ['domains']),     'domain');
+    const categoryList = countField(applyFilters(news, filters, ['categories']),  'category');
+    const commodityList = countField(applyFilters(news, filters, ['commodities']), 'commodity');
+    const countryList = countField(applyFilters(news, filters, ['countries']),   'country');
+    return { domains: domainList, categories: categoryList, commodities: commodityList, countries: countryList };
+  }, [news, filters]);
 
   const filtered = useMemo(() => {
-    return news.filter(n => {
-      if (domain && n.domain !== domain) return false;
-      if (category && n.category !== category) return false;
-      if (commodity) {
-        const vals = (n.commodity || '').split(',').map(s => s.trim());
-        if (!vals.includes(commodity)) return false;
-      }
-      if (country) {
-        const vals = (n.country || '').split(',').map(s => s.trim());
-        if (!vals.includes(country)) return false;
-      }
-      return true;
-    });
-  }, [news, domain, category, commodity, country]);
+    return applyFilters(news, filters);
+  }, [news, filters]);
 
   const hasFilters = domain || category || commodity || country;
   const filterLabel = [domain, category, commodity, country].filter(Boolean).join(', ') || 'всі новини';
@@ -93,21 +106,21 @@ export function AnalyticsPage({ news }) {
 
       <div className="analytics-scroll">
         <div className="analytics-filter-bar">
-          <select className="sort-select analytics-select" value={domain} onChange={handleChange(setDomain)}>
+          <select className="analytics-select" value={domain} onChange={handleChange(setDomain)}>
             <option value="">Всі домени</option>
-            {options.domains.map(d => <option key={d} value={d}>{d}</option>)}
+            {options.domains.map(([d]) => <option key={d} value={d}>{d}</option>)}
           </select>
-          <select className="sort-select analytics-select" value={category} onChange={handleChange(setCategory)}>
+          <select className="analytics-select" value={category} onChange={handleChange(setCategory)}>
             <option value="">Всі категорії</option>
-            {options.categories.map(c => <option key={c} value={c}>{c}</option>)}
+            {options.categories.map(([c]) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select className="sort-select analytics-select" value={commodity} onChange={handleChange(setCommodity)}>
+          <select className="analytics-select" value={commodity} onChange={handleChange(setCommodity)}>
             <option value="">Вся сировина</option>
-            {options.commodities.map(c => <option key={c} value={c}>{c}</option>)}
+            {options.commodities.map(([c]) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select className="sort-select analytics-select" value={country} onChange={handleChange(setCountry)}>
+          <select className="analytics-select" value={country} onChange={handleChange(setCountry)}>
             <option value="">Всі країни</option>
-            {options.countries.map(c => <option key={c} value={c}>{c}</option>)}
+            {options.countries.map(([c]) => <option key={c} value={c}>{c}</option>)}
           </select>
           {hasFilters && (
             <button className="reset-btn analytics-reset-btn" onClick={handleReset}>Скинути</button>
