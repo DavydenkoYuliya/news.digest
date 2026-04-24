@@ -37,6 +37,58 @@ function countField(rows, key) {
   return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0], 'uk-UA', { sensitivity: 'base' }));
 }
 
+function AnalyticsFilterGroup({ label, options, selected, onToggle, expanded, onExpand }) {
+  const [q, setQ] = useState('');
+  if (!options || options.length === 0) return null;
+
+  const visible = q.trim()
+    ? options.filter(([val]) => val.toLowerCase().includes(q.toLowerCase()))
+    : options;
+
+  const selectedCount = selected.length;
+
+  return (
+    <div className="analytics-filter-group">
+      <button
+        className="analytics-filter-button"
+        onClick={onExpand}
+      >
+        <span className="analytics-filter-label">{label}</span>
+        {selectedCount > 0 && <span className="analytics-filter-badge">{selectedCount}</span>}
+        <span className="analytics-filter-arrow">{expanded ? '▼' : '▶'}</span>
+      </button>
+      {expanded && (
+        <div className="analytics-filter-dropdown">
+          {options.length > 5 && (
+            <input
+              className="analytics-filter-search"
+              placeholder="Пошук..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          )}
+          <div className="analytics-chk-list">
+            {visible.map(([val, cnt]) => (
+              <label key={val} className="analytics-chk-item">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(val)}
+                  onChange={() => onToggle(val)}
+                />
+                {val}
+                <span className="analytics-chk-count">{cnt}</span>
+              </label>
+            ))}
+            {visible.length === 0 && (
+              <div className="analytics-filter-no-results">Не знайдено</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AnalyticsResult({ text }) {
   return (
     <div className="ar-body">
@@ -65,13 +117,14 @@ function AnalyticsResult({ text }) {
 }
 
 export function AnalyticsPage({ news }) {
-  const [domain, setDomain] = useState('');
-  const [category, setCategory] = useState('');
-  const [commodity, setCommodity] = useState('');
-  const [country, setCountry] = useState('');
+  const [domains, setDomains] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [commodities, setCommodities] = useState([]);
+  const [countries, setCountries] = useState([]);
+  const [expandedFilter, setExpandedFilter] = useState(null);
   const { generate, result, loading, error, clear } = useAnalyticsGeneration();
 
-  const filters = { domains: domain ? [domain] : [], categories: category ? [category] : [], commodities: commodity ? [commodity] : [], countries: country ? [country] : [] };
+  const filters = { domains, categories, commodities, countries };
 
   const options = useMemo(() => {
     const domainList = countField(applyFilters(news, filters, ['domains']),     'domain');
@@ -85,13 +138,24 @@ export function AnalyticsPage({ news }) {
     return applyFilters(news, filters);
   }, [news, filters]);
 
-  const hasFilters = domain || category || commodity || country;
-  const filterLabel = [domain, category, commodity, country].filter(Boolean).join(', ') || 'всі новини';
+  const hasFilters = domains.length > 0 || categories.length > 0 || commodities.length > 0 || countries.length > 0;
+  const filterLabel = [...domains, ...categories, ...commodities, ...countries].join(', ') || 'всі новини';
   const newsCount = filtered.length;
   const usedCount = Math.min(newsCount, 30);
 
-  const handleChange = (setter) => (e) => { setter(e.target.value); clear(); };
-  const handleReset = () => { setDomain(''); setCategory(''); setCommodity(''); setCountry(''); clear(); };
+  const toggleFilter = (setter, arr, val) => {
+    setter(arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val]);
+    clear();
+  };
+
+  const handleReset = () => {
+    setDomains([]);
+    setCategories([]);
+    setCommodities([]);
+    setCountries([]);
+    setExpandedFilter(null);
+    clear();
+  };
 
   return (
     <div className="content">
@@ -105,23 +169,39 @@ export function AnalyticsPage({ news }) {
       </div>
 
       <div className="analytics-scroll">
-        <div className="analytics-filter-bar">
-          <select className="analytics-select" value={domain} onChange={handleChange(setDomain)}>
-            <option value="">Всі домени</option>
-            {options.domains.map(([d]) => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <select className="analytics-select" value={category} onChange={handleChange(setCategory)}>
-            <option value="">Всі категорії</option>
-            {options.categories.map(([c]) => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <select className="analytics-select" value={commodity} onChange={handleChange(setCommodity)}>
-            <option value="">Вся сировина</option>
-            {options.commodities.map(([c]) => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <select className="analytics-select" value={country} onChange={handleChange(setCountry)}>
-            <option value="">Всі країни</option>
-            {options.countries.map(([c]) => <option key={c} value={c}>{c}</option>)}
-          </select>
+        <div className="analytics-filters">
+          <AnalyticsFilterGroup
+            label="Домен"
+            options={options.domains}
+            selected={domains}
+            onToggle={(v) => toggleFilter(setDomains, domains, v)}
+            expanded={expandedFilter === 'domains'}
+            onExpand={() => setExpandedFilter(expandedFilter === 'domains' ? null : 'domains')}
+          />
+          <AnalyticsFilterGroup
+            label="Категорія"
+            options={options.categories}
+            selected={categories}
+            onToggle={(v) => toggleFilter(setCategories, categories, v)}
+            expanded={expandedFilter === 'categories'}
+            onExpand={() => setExpandedFilter(expandedFilter === 'categories' ? null : 'categories')}
+          />
+          <AnalyticsFilterGroup
+            label="Сировина"
+            options={options.commodities}
+            selected={commodities}
+            onToggle={(v) => toggleFilter(setCommodities, commodities, v)}
+            expanded={expandedFilter === 'commodities'}
+            onExpand={() => setExpandedFilter(expandedFilter === 'commodities' ? null : 'commodities')}
+          />
+          <AnalyticsFilterGroup
+            label="Країна"
+            options={options.countries}
+            selected={countries}
+            onToggle={(v) => toggleFilter(setCountries, countries, v)}
+            expanded={expandedFilter === 'countries'}
+            onExpand={() => setExpandedFilter(expandedFilter === 'countries' ? null : 'countries')}
+          />
           {hasFilters && (
             <button className="reset-btn analytics-reset-btn" onClick={handleReset}>Скинути</button>
           )}
