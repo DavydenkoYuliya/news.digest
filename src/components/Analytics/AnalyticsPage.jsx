@@ -47,6 +47,12 @@ function AnalyticsFilterGroup({ label, options, selected, onToggle, expanded, on
 
   const selectedCount = selected.length;
 
+  const getBadgeText = () => {
+    if (selectedCount === 0) return null;
+    if (selectedCount === 1) return selected[0];
+    return `Вибрано ${selectedCount}`;
+  };
+
   return (
     <div className="analytics-filter-group">
       <button
@@ -54,7 +60,7 @@ function AnalyticsFilterGroup({ label, options, selected, onToggle, expanded, on
         onClick={onExpand}
       >
         <span className="analytics-filter-label">{label}</span>
-        {selectedCount > 0 && <span className="analytics-filter-badge">{selectedCount}</span>}
+        {selectedCount > 0 && <span className="analytics-filter-badge">{getBadgeText()}</span>}
         <span className="analytics-filter-arrow">{expanded ? '▼' : '▶'}</span>
       </button>
       {expanded && (

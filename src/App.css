@@ -641,9 +641,13 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
   background: #4A90D9;
   color: white;
   font-size: 11px;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: 4px;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 .analytics-filter-arrow {
