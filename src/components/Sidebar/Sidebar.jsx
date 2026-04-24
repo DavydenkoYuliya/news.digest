@@ -91,15 +91,13 @@ function FilterGroup({ label, options, selected, onToggle, capitalizeVal }) {
   const anyVisible = visibleVals.some(v => selected.includes(v));
 
   const selectAll = () => {
-    visibleVals.forEach(val => {
-      if (!selected.includes(val)) onToggle(val);
-    });
+    const toAdd = visibleVals.filter(val => !selected.includes(val));
+    toAdd.forEach(val => onToggle(val));
   };
 
   const clearAll = () => {
-    selected.forEach(val => {
-      if (visibleVals.includes(val)) onToggle(val);
-    });
+    const toRemove = selected.filter(val => visibleVals.includes(val));
+    toRemove.forEach(val => onToggle(val));
   };
 
   return (
