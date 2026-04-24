@@ -90,11 +90,17 @@ function AnalyticsFilterGroup({ label, options, selected, onToggle, onSetAll, on
           )}
           {visibleVals.length > 0 && (
             <div className="analytics-filter-actions">
-              <button className="analytics-filter-action-btn" onClick={selectAll}>
+              <button className="analytics-filter-action-btn" onClick={() => {
+                selectAll();
+                onExpand();
+              }}>
                 {allVisibleSelected ? '✓' : '○'} Вибрати все
               </button>
               {anyVisible && (
-                <button className="analytics-filter-action-btn" onClick={clearAll}>
+                <button className="analytics-filter-action-btn" onClick={() => {
+                  clearAll();
+                  onExpand();
+                }}>
                   ✕ Зняти вибір
                 </button>
               )}
@@ -106,7 +112,10 @@ function AnalyticsFilterGroup({ label, options, selected, onToggle, onSetAll, on
                 <input
                   type="checkbox"
                   checked={selected.includes(val)}
-                  onChange={() => onToggle(val)}
+                  onChange={() => {
+                    onToggle(val);
+                    onExpand();
+                  }}
                 />
                 {val}
                 <span className="analytics-chk-count">{cnt}</span>
